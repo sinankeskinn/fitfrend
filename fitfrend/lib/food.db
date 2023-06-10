@@ -1,0 +1,54 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'package:fitfrend/home.db';
+
+
+class DatabaseHelper {
+  static final DatabaseHelper instance = DatabaseHelper._();
+  static Database? _database;
+
+  DatabaseHelper._();
+
+  Future<Database> get database async {
+    if (_database != null) {
+      return _database!;
+    }
+
+    _database = await _initDatabase();
+    return _database!;
+  }
+
+  Future<Database> _initDatabase() async {
+    final databasesPath = await getDatabasesPath();
+    final path = join(databasesPath, 'meal_database.db');
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _createTable,
+    );
+  }
+
+  Future<void> _createTable(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS meals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        totalCalorie INTEGER,
+        portion INTEGER
+      )
+    ''');
+  }
+
+  Future<void> insertMeal(int totalCalorie, int portion) async {
+    final db = await instance.database;
+    await db.insert(
+      'meals',
+      {'totalCalorie': totalCalorie, 'portion': portion},
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getAllMeals() async {
+    final db = await instance.database;
+    return await db.query('meals');
+  }
+}

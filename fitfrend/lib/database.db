@@ -1,0 +1,120 @@
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+
+class DatabaseHelper {
+  static final _databaseName = 'meals.db';
+  static final _databaseVersion = 1;
+
+  static final table = 'meals';
+
+  static final columnDate = 'date';
+  static final columnTotalCalories = 'totalCalories';
+  static final columnMealCount = 'mealCount';
+
+  DatabaseHelper._privateConstructor();
+  static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
+
+  static Database? _database;
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
+  }
+
+  _initDatabase() async {
+    String path = await getDatabasesPath();
+    return await openDatabase(
+      join(path, _databaseName),
+      version: _databaseVersion,
+      onCreate: _createDatabase,
+    );
+  }
+
+  Future<void> _createDatabase(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE $table (
+        $columnDate TEXT PRIMARY KEY,
+        $columnTotalCalories INTEGER,
+        $columnMealCount INTEGER
+      )
+    ''');
+  }
+
+  Future<void> insertMeal(Meal meal) async {
+    Database db = await instance.database;
+    await db.insert(table, meal.toMap());
+  }
+
+  Future<void> updateMealStatistics(Meal meal) async {
+    Database db = await instance.database;
+    await db.update(
+      table,
+      meal.toMap(),
+      where: '$columnDate = ?',
+      whereArgs: [meal.date],
+    );
+  }
+
+  Future<void> deleteMeal(String date) async {
+    Database db = await instance.database;
+    await db.delete(
+      table,
+      where: '$columnDate = ?',
+      whereArgs: [date],
+    );
+  }
+
+  Future<Meal> getMealStatistics(String date) async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> maps = await db.query(
+      table,
+      where: '$columnDate = ?',
+      whereArgs: [date],
+    );
+    if (maps.isNotEmpty) {
+      return Meal.fromMap(maps.first);
+    } else {
+      return Meal(
+        date: date,
+        totalCalories: 0,
+        mealCount: 0,
+      );
+    }
+  }
+
+  Future<List<Meal>> getAllMeals() async {
+    Database db = await instance.database;
+    List<Map<String, dynamic>> maps = await db.query(table);
+    return List.generate(maps.length, (index) {
+      return Meal.fromMap(maps[index]);
+    });
+  }
+}
+
+class Meal {
+  String date;
+  int totalCalories;
+  int mealCount;
+
+  Meal({
+    required this.date,
+    required this.totalCalories,
+    required this.mealCount,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'date': date,
+      'totalCalories': totalCalories,
+      'mealCount': mealCount,
+    };
+  }
+
+  static Meal fromMap(Map<String, dynamic> map) {
+    return Meal(
+      date: map['date'],
+      totalCalories: map['totalCalories'],
+      mealCount: map['mealCount'],
+    );
+  }
+}

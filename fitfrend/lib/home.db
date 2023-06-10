@@ -1,0 +1,112 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'package:intl/intl.dart';
+
+
+class FitData {
+  static final FitData _instance = FitData.internal();
+
+  factory FitData() => _instance;
+
+  static Database? _db;
+
+  Future<Database> get db async {
+    if (_db != null) {
+      return _db!;
+    }
+    _db = await initDb();
+    return _db!;
+  }
+
+  FitData.internal();
+
+  Future<Database> initDb() async {
+    String databasesPath = await getDatabasesPath();
+    String path = join(databasesPath, 'fitfrend.db');
+    return await openDatabase(path, version: 1, onCreate: _onCreate);
+  }
+
+  void _onCreate(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE kalori (
+        id AUTOINCREMENT INTEGER ,
+        tarih INTEGER PRIMARY KEY,
+        hedefKalori INTEGER,
+        harcananKalori INTEGER,
+        ogunSayisi INTEGER,
+        egzersizSure INTEGER,
+        alinanKalori INTEGER
+      )
+    ''');
+
+    DateTime now = DateTime.now();
+    int unixTimestamp = now.millisecondsSinceEpoch ~/ 1000;
+
+    await db.rawInsert('''
+      INSERT INTO kalori (tarih, hedefKalori, harcananKalori, ogunSayisi, egzersizSure, alinanKalori)
+      VALUES (?, ?, ?, ?, ?, ?)
+    ''', [unixTimestamp, 3000, 300, 3, 45, 2600]);
+  }
+
+  Future<int> updateKalori(Map<String, int> kalori, int id) async {
+    final dbClient = await db;
+    return await dbClient.update('kalori', kalori, where: 'id = ?', whereArgs: [id]);
+  }
+
+
+
+  Future<void> updateAlinanKalori(int alinanKalori, int id) async {
+    final dbClient = await db;
+    await dbClient.rawUpdate(
+      'UPDATE kalori SET alinanKalori = ? WHERE id = ?',
+      [alinanKalori, id],
+    );
+  }
+
+
+
+
+  Future<void> updateTarih(int id, int tarih) async {
+    Database dbClient = await db;
+    await dbClient.update('kalori', {'tarih': tarih}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<Map<String, int>> getKalori({int id = 1}) async {
+    Database dbClient = await db;
+    List<Map<String, dynamic>> result = await dbClient.query('kalori', where: 'id = ?', whereArgs: [id]);
+    if (result.isNotEmpty) {
+      return {
+        'hedefKalori': result.first['hedefKalori'] as int,
+        'harcananKalori': result.first['harcananKalori'] as int,
+        'ogunSayisi': result.first['ogunSayisi'] as int,
+        'egzersizSure': result.first['egzersizSure'] as int,
+        'alinanKalori': result.first['alinanKalori'] as int,
+      };
+    } else {
+      return {};
+    }
+  }
+
+}
+
+
+class FitDataUpdater {
+  Future<void> updateKalori(int totalCalorie) async {
+    final fitDb = await FitData().db;
+
+    DateTime now = DateTime.now();
+    int unixTimestamp = now.millisecondsSinceEpoch ~/ 1000;
+
+    final updatedKalori = {
+      'harcananKalori': totalCalorie,
+      'alinanKalori': totalCalorie,
+    };
+
+    await fitDb.update('kalori', updatedKalori, where: 'tarih = ?', whereArgs: [unixTimestamp]);
+  }
+
+}
+
+
+
+

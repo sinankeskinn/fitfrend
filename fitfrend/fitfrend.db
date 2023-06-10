@@ -1,0 +1,101 @@
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+
+class DatabaseHelper {
+  static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
+
+  static Database? _database;
+
+  DatabaseHelper._privateConstructor();
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
+  }
+
+  Future<Database> _initDatabase() async {
+    final String path = join(await getDatabasesPath(), 'yemekler_database.db');
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _createDatabase,
+    );
+  }
+
+  Future<void> _createDatabase(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE yemekler (
+        id INTEGER PRIMARY KEY,
+        ogun_turu TEXT,
+        yemek_adi TEXT,
+        kalori INTEGER,
+        tarif TEXT
+      )
+    ''');
+  }
+
+  Future<int> insertYemek(Yemek yemek) async {
+    final Database db = await instance.database;
+    return await db.insert('yemekler', yemek.toMap());
+  }
+
+  Future<List<Yemek>> getYemekler() async {
+    final Database db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query('yemekler');
+    return List.generate(maps.length, (index) {
+      return Yemek(
+        id: maps[index]['id'],
+        ogunTuru: maps[index]['ogun_turu'],
+        yemekAdi: maps[index]['yemek_adi'],
+        kalori: maps[index]['kalori'],
+        tarif: maps[index]['tarif'],
+      );
+    });
+  }
+
+  Future<int> updateYemek(Yemek yemek) async {
+    final Database db = await instance.database;
+    return await db.update(
+      'yemekler',
+      yemek.toMap(),
+      where: 'id = ?',
+      whereArgs: [yemek.id],
+    );
+  }
+
+  Future<int> deleteYemek(int id) async {
+    final Database db = await instance.database;
+    return await db.delete(
+      'yemekler',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+}
+
+class Yemek {
+  final int? id;
+  final String ogunTuru;
+  final String yemekAdi;
+  final int kalori;
+  final String tarif;
+
+  Yemek({
+    this.id,
+    required this.ogunTuru,
+    required this.yemekAdi,
+    required this.kalori,
+    required this.tarif,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'ogun_turu': ogunTuru,
+      'yemek_adi': yemekAdi,
+      'kalori': kalori,
+      'tarif': tarif,
+    };
+  }
+}
